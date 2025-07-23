@@ -130,13 +130,13 @@ class CassandraBenchmark(BaseBenchmark):
         from cassandra import ConsistencyLevel
         from cassandra.query import BatchStatement
         
-        batch_size = 50  # Cassandra has limits on batch size
+        batch_size = 25  # Cassandra has limits on batch size - reduced to avoid "Batch too large" errors
         for i in range(0, len(data), batch_size):
             batch = BatchStatement(consistency_level=ConsistencyLevel.LOCAL_ONE)
             
             for record in data[i:i+batch_size]:
                 batch.add(insert_stmt, (
-                    record.get('codigo', ''),
+                    str(record.get('codigo', '')),
                     record.get('titulo', ''),
                     record.get('data_inicio', ''),
                     record.get('data_fim', ''),

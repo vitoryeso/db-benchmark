@@ -116,7 +116,7 @@ class ScylladbBenchmark(CassandraBenchmark):
             
             for record in data[i:i+batch_size]:
                 batch.add(insert_stmt, (
-                    record.get('codigo', ''),
+                    str(record.get('codigo', '')),
                     record.get('titulo', ''),
                     record.get('data_inicio', ''),
                     record.get('data_fim', ''),

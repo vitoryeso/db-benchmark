@@ -170,7 +170,7 @@ class BenchmarkRunner:
             
             # Get all codigos for random sampling during load test
             logger.info("Retrieving all codigos for load test...")
-            all_codigos = [record['codigo'] for record in data]
+            all_codigos = [str(record['codigo']) for record in data]
             
             # Run the actual load test
             logger.info(f"Starting load test with {num_iterations} iterations")

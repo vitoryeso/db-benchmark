@@ -98,6 +98,20 @@ class BaseBenchmark(abc.ABC):
         with open(file_path, 'r') as f:
             data = json.load(f)
         
+        # Handle different JSON formats
+        if isinstance(data, dict):
+            # If it's a dict with 'atendimentos' key, use that
+            if 'atendimentos' in data:
+                data = data['atendimentos']
+            # If it's a dict with 'data' key, use that
+            elif 'data' in data:
+                data = data['data']
+            else:
+                raise ValueError(f"Expected list or dict with 'atendimentos' or 'data' key, got dict with keys: {list(data.keys())}")
+        
+        if not isinstance(data, list):
+            raise ValueError(f"Expected list of records, got {type(data)}")
+        
         if limit:
             data = data[:limit]
         
@@ -109,7 +123,7 @@ class BaseBenchmark(abc.ABC):
         logger.info(f"Performing warmup with {iterations} iterations")
         
         # Get sample codigos for warmup
-        sample_codigos = [record['codigo'] for record in sample_data[:50]]
+        sample_codigos = [str(record['codigo']) for record in sample_data[:50]]
         
         for _ in tqdm(range(iterations), desc="Warmup"):
             # Random queries to warm up the cache
@@ -142,7 +156,7 @@ class BaseBenchmark(abc.ABC):
                 # Select random codigos from inserted data so far
                 all_inserted = data[:(i + 1) * batch_size]
                 selected_records = np.random.choice(all_inserted, size=20, replace=False)
-                selected_codigos = [r['codigo'] for r in selected_records]
+                selected_codigos = [str(r['codigo']) for r in selected_records]
                 
                 _, query_time = self.query_by_codigo(selected_codigos)
                 query_latencies.append(query_time)

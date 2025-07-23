@@ -99,7 +99,7 @@ class PostgresBenchmark(BaseBenchmark):
             values = []
             for record in data:
                 values.append((
-                    record.get('codigo', ''),
+                    str(record.get('codigo', '')),
                     record.get('titulo', ''),
                     record.get('data_inicio', ''),
                     record.get('data_fim', ''),
@@ -131,18 +131,23 @@ class PostgresBenchmark(BaseBenchmark):
         """Query records by codigo"""
         start_time = time.time()
         
-        with self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            # Use ANY for efficient IN query
-            cursor.execute(
-                "SELECT * FROM atendimentos WHERE codigo = ANY(%s)",
-                (codigos,)
-            )
-            results = cursor.fetchall()
-        
-        elapsed_time = time.time() - start_time
-        logger.debug(f"Queried {len(codigos)} codigos in {elapsed_time:.3f}s, found {len(results)} records")
-        
-        return results, elapsed_time
+        try:
+            with self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                # Use ANY for efficient IN query
+                cursor.execute(
+                    "SELECT * FROM atendimentos WHERE codigo = ANY(%s)",
+                    (codigos,)
+                )
+                results = cursor.fetchall()
+            
+            elapsed_time = time.time() - start_time
+            logger.debug(f"Queried {len(codigos)} codigos in {elapsed_time:.3f}s, found {len(results)} records")
+            
+            return results, elapsed_time
+        except Exception as e:
+            # Rollback transaction on error
+            self.connection.rollback()
+            raise
     
     def query_by_cliente_substring(self, substring: str, limit: int = 100) -> Tuple[List[Dict], float]:
         """Query records by cliente substring using trigram similarity"""
