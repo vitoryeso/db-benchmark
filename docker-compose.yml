@@ -12,15 +12,18 @@ services:
       - postgres_data:/var/lib/postgresql/data
     command: >
       postgres
-      -c shared_buffers=256MB
+      -c shared_buffers=512MB
       -c max_connections=200
-      -c effective_cache_size=1GB
-      -c maintenance_work_mem=128MB
+      -c effective_cache_size=2GB
+      -c maintenance_work_mem=256MB
       -c checkpoint_completion_target=0.9
-      -c wal_buffers=16MB
+      -c wal_buffers=32MB
       -c default_statistics_target=100
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
+      -c work_mem=64MB
+      -c max_wal_size=2GB
+      -c min_wal_size=1GB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U benchmark"]
       interval: 10s
@@ -28,7 +31,7 @@ services:
       retries: 5
 
   mongodb:
-    image: mongo:7.0
+    image: mongo:7
     container_name: benchmark-mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: benchmark
@@ -38,7 +41,12 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-    command: mongod --wiredTigerCacheSizeGB 1 --bind_ip_all
+    command: >
+      mongod
+      --wiredTigerCacheSizeGB 2
+      --wiredTigerJournalCompressor snappy
+      --wiredTigerCollectionBlockCompressor snappy
+      --wiredTigerIndexPrefixCompression true
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
@@ -46,11 +54,14 @@ services:
       retries: 5
 
   couchdb:
-    image: couchdb:3.3
+    image: couchdb:3
     container_name: benchmark-couchdb
     environment:
       COUCHDB_USER: benchmark
       COUCHDB_PASSWORD: benchmark123
+      COUCHDB_CACHE_SIZE: 2147483648  # 2GB cache
+      COUCHDB_MAX_DBS_OPEN: 500
+      COUCHDB_TIMEOUT: 60000
     ports:
       - "5984:5984"
     volumes:
@@ -65,17 +76,21 @@ services:
     image: cassandra:4.1
     container_name: benchmark-cassandra
     environment:
-      CASSANDRA_CLUSTER_NAME: benchmark-cluster
-      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_CLUSTER_NAME: benchmark_cluster
       CASSANDRA_DC: datacenter1
-      HEAP_NEWSIZE: 256M
-      MAX_HEAP_SIZE: 1G
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      HEAP_NEWSIZE: 512M
+      MAX_HEAP_SIZE: 2G
+      CASSANDRA_CONCURRENT_READS: 64
+      CASSANDRA_CONCURRENT_WRITES: 64
+      CASSANDRA_CONCURRENT_COUNTER_WRITES: 32
+      CASSANDRA_CONCURRENT_MATERIALIZED_VIEW_WRITES: 32
     ports:
       - "9042:9042"
     volumes:
       - cassandra_data:/var/lib/cassandra
     healthcheck:
-      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces'"]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -84,13 +99,18 @@ services:
   scylladb:
     image: scylladb/scylla:5.4
     container_name: benchmark-scylladb
-    command: --smp 2 --memory 2G --overprovisioned 1 --developer-mode 1
+    command: >
+      --smp 4
+      --memory 4G
+      --overprovisioned 1
+      --max-io-requests 128
+      --developer-mode 1
     ports:
-      - "9043:9042"  # Using different port to avoid conflict with Cassandra
+      - "9043:9042"
     volumes:
       - scylladb_data:/var/lib/scylla
     healthcheck:
-      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces'"]
       interval: 30s
       timeout: 10s
       retries: 10

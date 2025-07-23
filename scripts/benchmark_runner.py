@@ -18,13 +18,16 @@ import pandas as pd
 # Add the parent directory to path to import benchmarks
 sys.path.append(str(Path(__file__).parent.parent))
 
+# Import regular benchmarks
 from scripts.benchmarks import (
     PostgresBenchmark,
-    MongodbBenchmark,
-    CouchdbBenchmark,
-    CassandraBenchmark,
-    ScylladbBenchmark
+    MongodbBenchmark
 )
+
+# Import optimized benchmarks
+from scripts.benchmarks.couchdb_benchmark_optimized import CouchdbBenchmarkOptimized as CouchdbBenchmark
+from scripts.benchmarks.cassandra_benchmark_optimized import CassandraBenchmarkOptimized as CassandraBenchmark
+from scripts.benchmarks import ScylladbBenchmark
 
 # Configure logging
 logging.basicConfig(
