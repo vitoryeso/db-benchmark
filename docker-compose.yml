@@ -1,0 +1,108 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: benchmark-postgres
+    environment:
+      POSTGRES_USER: benchmark
+      POSTGRES_PASSWORD: benchmark123
+      POSTGRES_DB: benchmark_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c max_connections=200
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=128MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U benchmark"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7.0
+    container_name: benchmark-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: benchmark
+      MONGO_INITDB_ROOT_PASSWORD: benchmark123
+      MONGO_INITDB_DATABASE: benchmark_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    command: mongod --wiredTigerCacheSizeGB 1 --bind_ip_all
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  couchdb:
+    image: couchdb:3.3
+    container_name: benchmark-couchdb
+    environment:
+      COUCHDB_USER: benchmark
+      COUCHDB_PASSWORD: benchmark123
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cassandra:
+    image: cassandra:4.1
+    container_name: benchmark-cassandra
+    environment:
+      CASSANDRA_CLUSTER_NAME: benchmark-cluster
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_DC: datacenter1
+      HEAP_NEWSIZE: 256M
+      MAX_HEAP_SIZE: 1G
+    ports:
+      - "9042:9042"
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  scylladb:
+    image: scylladb/scylla:5.4
+    container_name: benchmark-scylladb
+    command: --smp 2 --memory 2G --overprovisioned 1 --developer-mode 1
+    ports:
+      - "9043:9042"  # Using different port to avoid conflict with Cassandra
+    volumes:
+      - scylladb_data:/var/lib/scylla
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  couchdb_data:
+  cassandra_data:
+  scylladb_data:
+
+networks:
+  default:
+    name: benchmark-network 
